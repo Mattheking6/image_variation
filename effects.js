@@ -125,6 +125,7 @@ const FX = (() => {
   }
 
   function gaussianBlur(img, sigma) {
+    sigma = (sigma - 4)
     if (sigma < 0.5) return img;
     const w = img.w, h = img.h, n = w * h;
     const a = new Float32Array(n * 3), b = new Float32Array(n * 3);
@@ -179,7 +180,7 @@ const FX = (() => {
         p[0] = x + A * Math.sin((TAU * y) / L);
         p[1] = y + A * Math.sin((TAU * x) / L);
       },
-      2: (x, y, p) => {
+      6: (x, y, p) => {
         const A = 0.025 * S, L = 0.09 * S;
         p[0] = x + A * Math.sin((TAU * y) / L);
         p[1] = y + A * Math.sin((TAU * x) / L + 1.3);
@@ -197,7 +198,7 @@ const FX = (() => {
           p[1] = cy + dy * f;
         } else { p[0] = x; p[1] = y; }
       },
-      6: (x, y, p) => {
+      1: (x, y, p) => {
         const u = x / w, v = y / h;
         p[0] = x + 0.07 * S * nx(u, v);
         p[1] = y + 0.07 * S * ny(u, v);
@@ -455,13 +456,13 @@ const FX = (() => {
 
   function style(img, mode, scale) {
     switch (mode) {
-      case 1: return stylePhotocopy(img, scale);
+      case 7: return stylePhotocopy(img, scale);
       case 2: return styleComic(img, scale);
       case 3: return styleOil(img, scale);
       case 4: return styleWatercolor(img, scale);
       case 5: return styleCubism(img, scale);
       case 6: return styleMosaic(img, scale);
-      case 7: return styleWeave(img, scale);
+      case 1: return styleWeave(img, scale);
       default: return img;
     }
   }
@@ -492,7 +493,7 @@ const FX = (() => {
     const perm = new Int32Array(N);
     for (let k = 0; k < N; k++) perm[k] = k;
     const ids = Array.from({ length: N }, (_, k) => k);
-    for (let k = N - 1; k > 0; k--) { const r = Math.floor(rng() * (k + 1)); [ids[k], ids[r]] = [ids[r], ids[k]]; }
+    for (let k = N - 1; k > 0; k--) { const r = Math.floor(rng() * (k + 1));[ids[k], ids[r]] = [ids[r], ids[k]]; }
     const chosen = ids.slice(0, Math.round(P.swap * N));
     if (chosen.length > 1) chosen.forEach((k, i) => { perm[k] = chosen[(i + 1) % chosen.length]; });
 
@@ -788,14 +789,14 @@ const FX = (() => {
   function process(src, idx) {
     const scale = Math.max(src.w, src.h) / 1000;
     let img = src;
-    img = geometry(img, idx[7]);
-    img = gaussianBlur(img, VALUES.blur[idx[2]] * scale);
-    img = style(img, idx[6], scale);
-    img = posterize(img, VALUES.posterize[idx[3]]);
-    img = edges(img, VALUES.edges[idx[5]], scale);
-    img = recolor(img, idx[1]);
-    img = fragment(img, idx[0], scale);
-    img = distort(img, idx[4]);
+    img = geometry(img, idx[7]); // 7
+    img = gaussianBlur(img, VALUES.blur[idx[2]] * scale); // 5
+    img = style(img, idx[6], scale); // 8
+    img = posterize(img, VALUES.posterize[idx[3]]); // 2
+    img = edges(img, VALUES.edges[idx[5]], scale); // 6
+    img = recolor(img, idx[1]); // 1
+    img = fragment(img, idx[0], scale); // 3
+    img = distort(img, idx[4]); //4
     return img;
   }
 

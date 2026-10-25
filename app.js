@@ -1,63 +1,86 @@
 'use strict';
 
-const PARAMS = [
-  { name: 'Fragmentation', tag: 'Découpage', desc: "Découpe l'image en carrés ou en pièces de puzzle remises au mauvais endroit.",
-    labels: ['Aucune', 'Carrés tournés', 'Carrés échangés', 'Carrés mélangés', 'Puzzle imparfait', 'Puzzle mélangé', 'Cubes éparpillés', 'Chaos'], def: 0,
-    note: 'Le découpage et le mélange sont fixes : un même code donne toujours le même assemblage.' },
-  { name: 'Recoloration', tag: 'Colorimétrie', desc: 'Réaffecte une couleur à chaque niveau de gris selon une palette.',
-    labels: ['Aucune', 'Sépia', 'Bleu / orange', 'Coucher de soleil', 'Thermique', 'Néon inversé', 'Arc-en-ciel', 'Psyché&shy;délique'], def: 0,
-    note: 'Fonctionne même sur une image en noir et blanc : les tons sombres et clairs reçoivent des couleurs différentes.' },
-  { name: 'Flou gaussien', tag: 'Structure', desc: 'Efface les détails et finit par faire disparaître les contours.',
-    labels: ['0', '1', '2', '4', '8', '16', '32', '64 px'], def: 0,
-    note: "Le rayon dépend de la résolution de l'image (référence : 1000 px)." },
-  { name: 'Postérisation', tag: 'Rendu', desc: 'Réduit le nombre de niveaux de couleur et transforme les dégradés en aplats.',
-    labels: ['2', '3', '4', '6', '8', '12', '16', '32'], def: 7,
-    note: "Très efficace pour déformer l'apparence d'une photo." },
-  { name: 'Distorsion numérique', tag: 'Déformation', desc: 'Décale les canaux RVB, étire les pixels et introduit des décalages visuels.',
-    labels: ['Aucune', 'RVB léger', 'Décalage horiz.', 'Décalage vert.', 'Glitch', 'Pixel sorting', 'Ondulation', 'Glitch extrême'], def: 0,
-    note: 'Ce paramètre peut rendre un sujet presque méconnaissable.' },
-  { name: 'Extraction des contours', tag: 'Formes', desc: 'Remplace progressivement les surfaces par leurs contours.',
-    labels: ['0 %', '15 %', '30 %', '45 %', '60 %', '75 %', '90 %', '100 %'], def: 0,
-    note: 'À pleine intensité, une photo peut devenir un dessin de contours.' },
-  { name: 'Style artistique', tag: 'Texture', desc: 'Remplace le rendu photographique par un style visuel prédéfini.',
-    labels: ['Photo', 'Photocopie', 'BD', "Huile", 'Aquarelle', 'Cubisme', 'Mosaïque', 'Tissage'], def: 0,
-    note: 'Styles déterministes : un même code redonne toujours exactement la même image.' },
-  { name: 'Déformation géométrique', tag: 'Géométrie', desc: 'Déplace les pixels et modifie les formes, les proportions et la position des éléments.',
-    labels: ['Aucune', 'Ondul. légère', 'Ondul. forte', 'Vagues', 'Spirale', 'Bombement', 'Grille', 'Extrême'], def: 0 },
+const IMAGES = [
+  {
+    name: 'Bébé Hortense', src: 'image/Bébé Hortense.jpg', val: 0
+  },
+  {
+    name: 'Cousin Lewis', src: 'image/Cousin Lewis.jpg', val: 1
+  },
+  {
+    name: 'Dame Pétunia', src: 'image/Dame Pétunia.jpg', val: 2
+  },
+  {
+    name: 'Grand mère Anémone', src: 'image/Grand mère Anémone.jpg', val: 3
+  },
+  {
+    name: 'Grand père Cornelius', src: 'image/Grand père Cornelius.jpg', val: 4
+  },
+  {
+    name: 'Hannibal le Chat', src: 'image/Hannibal le Chat.jpg', val: 5
+  },
+  {
+    name: 'Mélusine', src: 'image/Mélusine.jpg', val: 6
+  },
+  {
+    name: 'Silex le chien', src: 'image/Silex le chien.jpg', val: 7
+  },
 ];
 
-const state = { idx: PARAMS.map(p => p.def), src: null, timer: null };
+const SOLUTION = "11181111" //"31524687"
+const state = { idx: parseCode(location.hash.slice(1)) || [0, 1, 2, 3, 4, 5, 6, 7], src: null, timer: null };
 const $ = id => document.getElementById(id);
 const controls = [];
 
+function update_image_select(el, image_id, param_id) {
+  let p = IMAGES[image_id]
+  el.querySelector("h2").innerText = `${param_id + 1}. ${p.name}`
+  let img = el.querySelector("img")
+  img.src = p.src
+  img.alt = "portrait de ${p.name}"
+  setParam(param_id, +image_id)
+}
+
+function buildImageSelector(param_id, init_image_id) {
+  let p = IMAGES[init_image_id]
+  const el = document.createElement('div');
+  el.className = 'param';
+  el.innerHTML = `
+    <div class="param-head">
+      <button type="button"><</button>
+      <h2>${param_id + 1}. ${p.name}</h2>
+      <button type="button">></button>
+    </div>
+      <img src="${p.src}" alt="portrait de ${p.name}">
+      <input type="range" min="0" max="7" step="1" value="${init_image_id}">`;
+  const btns = el.querySelectorAll('button');
+  const range = el.querySelector('input');
+  range.addEventListener('input', () => update_image_select(el, +range.value, param_id));
+  btns[0].addEventListener('click', () => update_image_select(el, ((parseInt(range.value) - 1) % 8 + 8) % 8, param_id));
+  btns[1].addEventListener('click', () => update_image_select(el, ((parseInt(range.value) + 1) % 8 + 8) % 8, param_id));
+  controls.push({ range });
+  $('controls').appendChild(el);
+}
+
+
 function buildControls() {
-  PARAMS.forEach((p, k) => {
-    const el = document.createElement('div');
-    el.className = 'param';
-    el.innerHTML = `
-      <div class="param-head"><h2>${k + 1}. ${p.name}</h2><span class="tag">${p.tag}</span></div>
-      <p>${p.desc}</p>
-      <input type="range" min="0" max="7" step="1">
-      <div class="ticks">${p.labels.map((l, i) => `<button type="button" data-i="${i}">${l}</button>`).join('')}</div>
-      ${p.note ? `<p class="note">${p.note}</p>` : ''}`;
-    const range = el.querySelector('input');
-    const ticks = [...el.querySelectorAll('.ticks button')];
-    range.addEventListener('input', () => setParam(k, +range.value));
-    ticks.forEach(b => b.addEventListener('click', () => setParam(k, +b.dataset.i)));
-    controls.push({ range, ticks });
-    $('controls').appendChild(el);
-  });
+  state.idx.forEach((v, k) => {
+    buildImageSelector(k, v)
+  })
 }
 
 function refreshControls() {
   state.idx.forEach((v, k) => {
     controls[k].range.value = v;
-    controls[k].ticks.forEach((b, i) => b.classList.toggle('active', i === v));
   });
   const code = state.idx.map(v => v + 1).join('');
-  $('code').value = code;
-  $('code').classList.remove('invalid');
   history.replaceState(null, '', '#' + code);
+
+  if (code == SOLUTION) {
+    $("map").hidden = true
+  } else {
+    $("map").hidden = false
+  }
 }
 
 function setParam(k, v) {
@@ -79,19 +102,17 @@ function parseCode(str) {
 /* ---------- Image ---------- */
 
 function loadImage(img) {
-  const max = +$('res').value;
+  const max = 1000;
   const ratio = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * ratio)), h = Math.max(1, Math.round(img.naturalHeight * ratio));
-  const c = $('original');
+  const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   ctx.drawImage(img, 0, 0, w, h);
   const data = ctx.getImageData(0, 0, w, h);
   state.src = { w, h, d: data.data };
   state.image = img;
-  $('drop').hidden = true;
   $('views').hidden = false;
-  $('download').disabled = false;
   scheduleRender();
 }
 
@@ -104,12 +125,20 @@ function loadFile(file) {
   img.src = url;
 }
 
+function loadDefault() {
+  // En file://, l'image polluerait le canvas ; on laisse la zone de dépôt.
+  if (!/^https?:$/.test(location.protocol)) return;
+  state.name = 'wip1';
+  const img = new Image();
+  img.onload = () => loadImage(img);
+  img.src = 'image/wip1.png';
+}
+
 /* ---------- Rendu ---------- */
 
 function scheduleRender() {
   if (!state.src) return;
   clearTimeout(state.timer);
-  $('status').textContent = 'calcul…';
   // Laisse le navigateur afficher le statut avant le calcul (bloquant).
   state.timer = setTimeout(() => requestAnimationFrame(() => setTimeout(render, 0)), 40);
 }
@@ -121,49 +150,34 @@ function render() {
   c.width = out.w; c.height = out.h;
   c.getContext('2d').putImageData(new ImageData(out.d, out.w, out.h), 0, 0);
   state.result = out;
-  $('status').textContent = `${out.w}×${out.h} · ${Math.round(performance.now() - t0)} ms`;
 }
 
-function showOriginal(on) {
-  if (!state.result) return;
-  const c = $('result'), ctx = c.getContext('2d');
-  const img = on ? state.src : state.result;
-  ctx.putImageData(new ImageData(img.d, img.w, img.h), 0, 0);
+function init_map() {
+  var map = L.map('map').setView([45.769239, 4.852714], 14);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  var track = L.polyline(TRACK_POINTS, { color: 'darkorange' }).addTo(map);
+  map.fitBounds(track.getBounds());
+
+  var m1 = L.marker([45.775418, 4.856354], { title: "1" }).addTo(map);
+  var m2 = L.marker([45.777530, 4.853036], { title: "2" }).addTo(map);
+  var m3 = L.marker([45.777843, 4.845228], { title: "3" }).addTo(map);
+  var m4 = L.marker([45.771774, 4.843887], { title: "4" }).addTo(map);
+  var m5 = L.marker([45.768967, 4.847245], { title: "5" }).addTo(map);
+  var m6 = L.marker([45.763609, 4.848254], { title: "6" }).addTo(map);
+  var m7 = L.marker([45.762598, 4.857620], { title: "7" }).addTo(map);
+  var m8 = L.marker([45.768369, 4.859101], { title: "8" }).addTo(map);
+
+
 }
+
 
 /* ---------- Événements ---------- */
 
 buildControls();
 setAll(parseCode(location.hash.slice(1)) || state.idx);
-
-$('file').addEventListener('change', e => loadFile(e.target.files[0]));
-$('code').addEventListener('input', e => {
-  const idx = parseCode(e.target.value.trim());
-  e.target.classList.toggle('invalid', !idx);
-  if (idx) setAll(idx);
-});
-$('random').addEventListener('click', () => setAll(PARAMS.map(() => Math.floor(Math.random() * 8))));
-$('reset').addEventListener('click', () => setAll(PARAMS.map(p => p.def)));
-$('res').addEventListener('change', () => state.image && loadImage(state.image));
-$('download').addEventListener('click', () => {
-  const a = document.createElement('a');
-  a.download = `${state.name || 'image'}_${$('code').value}.png`;
-  a.href = $('result').toDataURL('image/png');
-  a.click();
-});
-
-const peek = $('peek');
-['pointerdown'].forEach(ev => peek.addEventListener(ev, () => showOriginal(true)));
-['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => peek.addEventListener(ev, () => showOriginal(false)));
-
-window.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
-window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dragging'); });
-window.addEventListener('drop', e => {
-  e.preventDefault();
-  document.body.classList.remove('dragging');
-  loadFile(e.dataTransfer.files[0]);
-});
-window.addEventListener('paste', e => {
-  const item = [...e.clipboardData.items].find(i => i.type.startsWith('image/'));
-  if (item) loadFile(item.getAsFile());
-});
+loadDefault();
+init_map();

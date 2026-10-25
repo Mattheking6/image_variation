@@ -1,55 +1,33 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Variations d'image</title>
+  <title>Enigmes d'automne</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="leaflet/dist/leaflet.css" />
+  <script src="leaflet/dist/leaflet.js"></script>
 </head>
+
 <body>
   <header>
-    <h1>Variations d'image</h1>
-    <div class="toolbar">
-      <label class="btn primary">Charger une image
-        <input type="file" id="file" accept="image/*" hidden>
-      </label>
-      <label class="code">Code
-        <input type="text" id="code" maxlength="8" spellcheck="false" title="8 chiffres de 1 à 8, un par paramètre">
-      </label>
-      <button class="btn" id="random">Aléatoire</button>
-      <button class="btn" id="reset">Réinitialiser</button>
-      <label class="code">Résolution
-        <select id="res">
-          <option value="600">600 px</option>
-          <option value="1000" selected>1000 px</option>
-          <option value="1600">1600 px</option>
-        </select>
-      </label>
-      <button class="btn" id="download" disabled>Télécharger</button>
-    </div>
+    <h1>Enigmes d'automne</h1>
   </header>
 
   <main>
-    <section id="controls"></section>
-    <section id="viewer">
-      <div id="drop" class="drop">
-        <p>Glissez-déposez une image ici, collez-la (Ctrl+V) ou utilisez « Charger une image ».</p>
-      </div>
-      <div id="views" hidden>
-        <figure>
-          <figcaption>Original</figcaption>
-          <canvas id="original"></canvas>
-        </figure>
-        <figure>
-          <figcaption>Résultat <span id="status"></span></figcaption>
-          <canvas id="result"></canvas>
-          <button class="btn" id="peek">Maintenir pour voir l'original</button>
-        </figure>
-      </div>
+    <section id="views">
+      <div id="map"></div>
+      <figure>
+        <canvas id="result"></canvas>
+      </figure>
     </section>
+    <section id="controls"></section>
   </main>
 
   <script src="effects.js"></script>
+  <script src="track.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>
