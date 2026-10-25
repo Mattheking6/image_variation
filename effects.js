@@ -466,17 +466,103 @@ const FX = (() => {
     }
   }
 
-  /* ---------- Réglages colorimétriques ---------- */
+  /* ---------- 1. Fragmentation (carrés, puzzle, cubes) ---------- */
 
-  function saturate(img, s) {
-    if (s === 1) return img;
-    const out = create(img.w, img.h), d = img.d, o = out.d;
-    for (let j = 0; j < d.length; j += 4) {
-      const l = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
-      o[j] = l + (d[j] - l) * s; o[j + 1] = l + (d[j + 1] - l) * s; o[j + 2] = l + (d[j + 2] - l) * s;
+  const FRAG = [
+    null,
+    { n: 6, swap: 0, rot: 0.35 },                                              // Carrés tournés
+    { n: 6, swap: 0.35, rot: 0.15 },                                           // Carrés échangés
+    { n: 9, swap: 1, rot: 0.5 },                                               // Carrés mélangés
+    { n: 6, jig: true, swap: 0.35, rot: 0.15 },                                // Puzzle imparfait
+    { n: 7, jig: true, swap: 1, rot: 0.5 },                                    // Puzzle mélangé
+    { n: 8, swap: 1, rot: 0.5, cube: true, tilt: 0.15, scale: 0.8, jitter: 0.05 }, // Cubes éparpillés
+    { n: 14, jig: true, swap: 1, rot: 0.9 },                                   // Chaos
+  ];
+
+  // Tenon de puzzle : a = profondeur depuis le bord, b = position le long du bord (0 = milieu).
+  const inTab = (a, b) => { const da = a - 0.2; return da * da + b * b < 0.0256 || (a >= 0 && a < 0.2 && Math.abs(b) < 0.08); };
+
+  function fragment(img, mode, scale) {
+    const P = FRAG[mode];
+    if (!P) return img;
+    const w = img.w, h = img.h, S = Math.max(w, h), T = S / P.n;
+    const nx = Math.max(1, Math.round(w / T)), ny = Math.max(1, Math.round(h / T));
+    const tx = w / nx, ty = h / ny, N = nx * ny, rng = mulberry32(2000 + mode);
+
+    const perm = new Int32Array(N);
+    for (let k = 0; k < N; k++) perm[k] = k;
+    const ids = Array.from({ length: N }, (_, k) => k);
+    for (let k = N - 1; k > 0; k--) { const r = Math.floor(rng() * (k + 1)); [ids[k], ids[r]] = [ids[r], ids[k]]; }
+    const chosen = ids.slice(0, Math.round(P.swap * N));
+    if (chosen.length > 1) chosen.forEach((k, i) => { perm[k] = chosen[(i + 1) % chosen.length]; });
+
+    const rot = new Uint8Array(N), ca = new Float32Array(N), sa = new Float32Array(N), ox = new Float32Array(N), oy = new Float32Array(N);
+    for (let k = 0; k < N; k++) {
+      rot[k] = rng() < P.rot ? 1 + Math.floor(rng() * 3) : 0;
+      const a = P.tilt ? (rng() * 2 - 1) * P.tilt : 0;
+      ca[k] = Math.cos(a); sa[k] = Math.sin(a);
+      ox[k] = P.jitter ? (rng() * 2 - 1) * P.jitter : 0;
+      oy[k] = P.jitter ? (rng() * 2 - 1) * P.jitter : 0;
+    }
+    // +1 : le tenon appartient à la pièce gauche/haute, -1 : à la pièce droite/basse
+    const vEdge = new Int8Array(Math.max(0, nx - 1) * ny), hEdge = new Int8Array(nx * Math.max(0, ny - 1));
+    for (let k = 0; k < vEdge.length; k++) vEdge[k] = rng() < 0.5 ? 1 : -1;
+    for (let k = 0; k < hEdge.length; k++) hEdge[k] = rng() < 0.5 ? 1 : -1;
+
+    const out = create(w, h), o = out.d, id = new Int32Array(w * h), tmp = [0, 0, 0];
+    const sc = P.scale || 1, bevel = 0.06;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const fx = x / tx, fy = y / ty;
+        let pi = Math.min(nx - 1, Math.floor(fx)), pj = Math.min(ny - 1, Math.floor(fy));
+        if (P.jig) {
+          const u = fx - pi, v = fy - pj, i = pi, j = pj;
+          if (i > 0 && vEdge[j * (nx - 1) + i - 1] === 1 && inTab(u, v - 0.5)) pi = i - 1;
+          else if (i < nx - 1 && vEdge[j * (nx - 1) + i] === -1 && inTab(1 - u, v - 0.5)) pi = i + 1;
+          else if (j > 0 && hEdge[(j - 1) * nx + i] === 1 && inTab(v, u - 0.5)) pj = j - 1;
+          else if (j < ny - 1 && hEdge[j * nx + i] === -1 && inTab(1 - v, u - 0.5)) pj = j + 1;
+        }
+        const k = pj * nx + pi, p = (y * w + x) * 4;
+        let u = fx - pi, v = fy - pj, shade = 1;
+        if (P.cube) {
+          const du = u - 0.5 - ox[k], dv = v - 0.5 - oy[k];
+          u = (du * ca[k] + dv * sa[k]) / sc + 0.5;
+          v = (-du * sa[k] + dv * ca[k]) / sc + 0.5;
+          if (u < 0 || u > 1 || v < 0 || v > 1) {
+            id[y * w + x] = -1;
+            o[p] = 22; o[p + 1] = 22; o[p + 2] = 26;
+            continue;
+          }
+          if (u < bevel || v < bevel) shade = 1.35;
+          else if (u > 1 - bevel || v > 1 - bevel) shade = 0.6;
+        }
+        let a = u, b = v;
+        if (rot[k] === 1) { a = v; b = 1 - u; }
+        else if (rot[k] === 2) { a = 1 - u; b = 1 - v; }
+        else if (rot[k] === 3) { a = 1 - v; b = u; }
+        const s = perm[k], si = s % nx, sj = (s - si) / nx;
+        sampleInto(img, (si + a) * tx, (sj + b) * ty, tmp, 0);
+        o[p] = tmp[0] * shade; o[p + 1] = tmp[1] * shade; o[p + 2] = tmp[2] * shade;
+        id[y * w + x] = k;
+      }
+    }
+    // Traits de découpe entre pièces
+    const r = Math.max(1, Math.round(scale * 1.5));
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x, k = id[i];
+        if (k < 0) continue;
+        const xr = Math.min(w - 1, x + r), yd = Math.min(h - 1, y + r);
+        if (id[y * w + xr] !== k || id[yd * w + x] !== k) {
+          const p = i * 4;
+          o[p] *= 0.25; o[p + 1] *= 0.25; o[p + 2] *= 0.25;
+        }
+      }
     }
     return out;
   }
+
+  /* ---------- Réglages colorimétriques ---------- */
 
   function posterize(img, levels) {
     const out = create(img.w, img.h), d = img.d, o = out.d, n = levels - 1;
@@ -498,11 +584,51 @@ const FX = (() => {
     return out;
   }
 
-  function invert(img, a) {
-    if (!a) return img;
+  /* ---------- 2. Recoloration (carte de dégradé : luminance -> couleur) ---------- */
+
+  function hsl(hue, s, l) {
+    const k = n => (n + hue / 30) % 12, a = s * Math.min(l, 1 - l);
+    const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+    return [f(0), f(8), f(4)];
+  }
+
+  function gradientLut(stops) {
+    const lut = new Uint8ClampedArray(256 * 3), n = stops.length - 1;
+    for (let i = 0; i < 256; i++) {
+      const t = (i / 255) * n, k = Math.min(n - 1, Math.floor(t)), f = t - k;
+      for (let c = 0; c < 3; c++) lut[i * 3 + c] = stops[k][c] + (stops[k + 1][c] - stops[k][c]) * f;
+    }
+    return lut;
+  }
+
+  function hueLut(cycles, offset) {
+    const lut = new Uint8ClampedArray(256 * 3);
+    for (let i = 0; i < 256; i++) {
+      const t = i / 255, l = 0.12 + 0.76 * t;
+      const rgb = hsl((offset + 360 * cycles * t) % 360, 0.9, l);
+      lut.set(rgb, i * 3);
+    }
+    return lut;
+  }
+
+  const PALETTES = [
+    null,
+    gradientLut([[25, 12, 5], [112, 66, 32], [196, 150, 100], [250, 236, 210]]),               // Sépia
+    gradientLut([[10, 20, 70], [40, 90, 170], [235, 140, 50], [255, 235, 190]]),               // Bleu / orange
+    gradientLut([[45, 0, 80], [200, 30, 120], [255, 140, 60], [255, 245, 120]]),               // Coucher de soleil
+    gradientLut([[0, 0, 0], [30, 0, 140], [180, 0, 160], [240, 60, 0], [255, 210, 0], [255, 255, 255]]), // Thermique
+    gradientLut([[0, 255, 220], [30, 60, 200], [120, 0, 160], [255, 0, 150], [10, 0, 30]]),   // Néon inversé
+    hueLut(1, 240),                                                                              // Arc-en-ciel
+    hueLut(3, 0),                                                                                // Psychédélique
+  ];
+
+  function recolor(img, mode) {
+    const lut = PALETTES[mode];
+    if (!lut) return img;
     const out = create(img.w, img.h), d = img.d, o = out.d;
     for (let j = 0; j < d.length; j += 4) {
-      for (let c = 0; c < 3; c++) o[j + c] = d[j + c] + (255 - 2 * d[j + c]) * a;
+      const l = Math.round(0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]) * 3;
+      o[j] = lut[l]; o[j + 1] = lut[l + 1]; o[j + 2] = lut[l + 2];
     }
     return out;
   }
@@ -653,8 +779,6 @@ const FX = (() => {
   /* ---------- Paramètres et pipeline ---------- */
 
   const VALUES = {
-    saturation: [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2],
-    inversion: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
     blur: [0, 1, 2, 4, 8, 16, 32, 64],
     posterize: [2, 3, 4, 6, 8, 12, 16, 32],
     edges: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
@@ -667,10 +791,10 @@ const FX = (() => {
     img = geometry(img, idx[7]);
     img = gaussianBlur(img, VALUES.blur[idx[2]] * scale);
     img = style(img, idx[6], scale);
-    img = saturate(img, VALUES.saturation[idx[0]]);
     img = posterize(img, VALUES.posterize[idx[3]]);
     img = edges(img, VALUES.edges[idx[5]], scale);
-    img = invert(img, VALUES.inversion[idx[1]]);
+    img = recolor(img, idx[1]);
+    img = fragment(img, idx[0], scale);
     img = distort(img, idx[4]);
     return img;
   }

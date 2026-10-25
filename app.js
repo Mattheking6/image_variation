@@ -1,11 +1,12 @@
 'use strict';
 
 const PARAMS = [
-  { name: 'Saturation des couleurs', tag: 'Couleur', desc: "Modifie l'intensité des couleurs.",
-    labels: ['0 %', '20 %', '40 %', '60 %', '80 %', '100 %', '150 %', '200 %'], def: 5 },
-  { name: 'Inversion des couleurs', tag: 'Colorimétrie', desc: 'Inverse les valeurs RGB, avec plusieurs intensités de mélange.',
-    labels: ['0 %', '15 %', '30 %', '45 %', '60 %', '75 %', '90 %', '100 %'], def: 0,
-    note: 'À 100 %, les couleurs sont totalement inversées.' },
+  { name: 'Fragmentation', tag: 'Découpage', desc: "Découpe l'image en carrés ou en pièces de puzzle remises au mauvais endroit.",
+    labels: ['Aucune', 'Carrés tournés', 'Carrés échangés', 'Carrés mélangés', 'Puzzle imparfait', 'Puzzle mélangé', 'Cubes éparpillés', 'Chaos'], def: 0,
+    note: 'Le découpage et le mélange sont fixes : un même code donne toujours le même assemblage.' },
+  { name: 'Recoloration', tag: 'Colorimétrie', desc: 'Réaffecte une couleur à chaque niveau de gris selon une palette.',
+    labels: ['Aucune', 'Sépia', 'Bleu / orange', 'Coucher de soleil', 'Thermique', 'Néon inversé', 'Arc-en-ciel', 'Psyché&shy;délique'], def: 0,
+    note: 'Fonctionne même sur une image en noir et blanc : les tons sombres et clairs reçoivent des couleurs différentes.' },
   { name: 'Flou gaussien', tag: 'Structure', desc: 'Efface les détails et finit par faire disparaître les contours.',
     labels: ['0', '1', '2', '4', '8', '16', '32', '64 px'], def: 0,
     note: "Le rayon dépend de la résolution de l'image (référence : 1000 px)." },
