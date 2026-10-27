@@ -8,6 +8,24 @@ const FX = (() => {
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
+  const VALUES = {
+    blur: [1, 2, 4, 8, 16, 32, 64],
+    posterize: [4, 3, 6, 8, 12, 16, 32],
+    edges: [0.75, 0.15, 0.3, 0.45, 0.6, 0.9, 1],
+  };
+
+  const PARAMS_FUNCTION = [
+    style,
+    gaussianBlur,
+    posterize,
+    recolor,
+    distort,
+    edges,
+    fragment,
+    geometry,
+  ]
+
+
   function mulberry32(seed) {
     let a = seed | 0;
     return () => {
@@ -124,8 +142,8 @@ const FX = (() => {
     }
   }
 
-  function gaussianBlur(img, sigma) {
-    sigma = (sigma - 4)
+  function gaussianBlur(img, mode, scale) {
+    let sigma = VALUES.blur[mode] * scale
     if (sigma < 0.5) return img;
     const w = img.w, h = img.h, n = w * h;
     const a = new Float32Array(n * 3), b = new Float32Array(n * 3);
@@ -174,23 +192,23 @@ const FX = (() => {
         p[1] = cy + dx * s + dy * c;
       } else { p[0] = x; p[1] = y; }
     };
-    const fns = {
-      1: (x, y, p) => {
+    const fns = [
+      (x, y, p) => {
         const A = 0.008 * S, L = 0.12 * S;
         p[0] = x + A * Math.sin((TAU * y) / L);
         p[1] = y + A * Math.sin((TAU * x) / L);
       },
-      6: (x, y, p) => {
+      (x, y, p) => {
         const A = 0.025 * S, L = 0.09 * S;
         p[0] = x + A * Math.sin((TAU * y) / L);
         p[1] = y + A * Math.sin((TAU * x) / L + 1.3);
       },
-      3: (x, y, p) => {
+      (x, y, p) => {
         p[0] = x + 0.045 * S * Math.sin((TAU * y) / (0.28 * S)) + 0.015 * S * Math.sin((TAU * y) / (0.07 * S) + 1);
         p[1] = y + 0.05 * S * Math.sin((TAU * x) / (0.33 * S) + 0.5) + 0.012 * S * Math.sin((TAU * (x + y)) / (0.09 * S));
       },
-      4: (x, y, p) => swirl(x, y, p, 0.6 * S, 4.5),
-      5: (x, y, p) => {
+      (x, y, p) => swirl(x, y, p, 0.6 * S, 4.5),
+      (x, y, p) => {
         const R = 0.55 * m, dx = x - cx, dy = y - cy, r = Math.sqrt(dx * dx + dy * dy);
         if (r < R && r > 0) {
           const f = Math.pow(r / R, 0.75);
@@ -198,12 +216,12 @@ const FX = (() => {
           p[1] = cy + dy * f;
         } else { p[0] = x; p[1] = y; }
       },
-      1: (x, y, p) => {
+      (x, y, p) => {
         const u = x / w, v = y / h;
         p[0] = x + 0.07 * S * nx(u, v);
         p[1] = y + 0.07 * S * ny(u, v);
       },
-      7: (x, y, p) => {
+      (x, y, p) => {
         const u = x / w, v = y / h;
         const X = x + 0.06 * S * Math.sin((TAU * y) / (0.2 * S)) + 0.12 * S * nx2(u, v);
         const Y = y + 0.06 * S * Math.sin((TAU * x) / (0.23 * S) + 2) + 0.12 * S * ny2(u, v);
@@ -211,7 +229,7 @@ const FX = (() => {
         p[0] += 0.04 * S * nx(u, v);
         p[1] += 0.04 * S * ny(u, v);
       },
-    };
+    ];
     return warp(img, fns[mode]);
   }
 
@@ -456,13 +474,13 @@ const FX = (() => {
 
   function style(img, mode, scale) {
     switch (mode) {
-      case 7: return stylePhotocopy(img, scale);
+      case 0: return styleWeave(img, scale);
+      case 1: return stylePhotocopy(img, scale);
       case 2: return styleComic(img, scale);
       case 3: return styleOil(img, scale);
       case 4: return styleWatercolor(img, scale);
       case 5: return styleCubism(img, scale);
       case 6: return styleMosaic(img, scale);
-      case 1: return styleWeave(img, scale);
       default: return img;
     }
   }
@@ -470,7 +488,6 @@ const FX = (() => {
   /* ---------- 1. Fragmentation (carrés, puzzle, cubes) ---------- */
 
   const FRAG = [
-    null,
     { n: 6, swap: 0, rot: 0.35 },                                              // Carrés tournés
     { n: 6, swap: 0.35, rot: 0.15 },                                           // Carrés échangés
     { n: 9, swap: 1, rot: 0.5 },                                               // Carrés mélangés
@@ -565,16 +582,18 @@ const FX = (() => {
 
   /* ---------- Réglages colorimétriques ---------- */
 
-  function posterize(img, levels) {
-    const out = create(img.w, img.h), d = img.d, o = out.d, n = levels - 1;
+  function posterize(img, mode) {
+    const level = VALUES.posterize[mode]
+    const out = create(img.w, img.h), d = img.d, o = out.d, n = level - 1;
     for (let j = 0; j < d.length; j += 4) {
       for (let c = 0; c < 3; c++) o[j + c] = (Math.round((d[j + c] / 255) * n) / n) * 255;
     }
     return out;
   }
 
-  function edges(img, amount, scale) {
-    if (!amount) return img;
+  function edges(img, mode, scale) {
+    if (!mode) return img;
+    const amount = VALUES.edges[mode]
     const w = img.w, h = img.h;
     const E = sobel(lumArray(gaussianBlur(img, scale)), w, h);
     const out = create(w, h), d = img.d, o = out.d;
@@ -613,7 +632,6 @@ const FX = (() => {
   }
 
   const PALETTES = [
-    null,
     gradientLut([[25, 12, 5], [112, 66, 32], [196, 150, 100], [250, 236, 210]]),               // Sépia
     gradientLut([[10, 20, 70], [40, 90, 170], [235, 140, 50], [255, 235, 190]]),               // Bleu / orange
     gradientLut([[45, 0, 80], [200, 30, 120], [255, 140, 60], [255, 245, 120]]),               // Coucher de soleil
@@ -757,6 +775,13 @@ const FX = (() => {
     if (!mode) return img;
     const S = Math.max(img.w, img.h), rng = mulberry32(1000 + mode);
     switch (mode) {
+      case 0: {
+        let a = glitch(img, S, rng, 2);
+        a = pixelSort(a, 40, 230);
+        a = bandShift(a, rng, false, 0.01 * S, 0.08 * S, 0.5, 0.2 * S);
+        const s = Math.round(0.03 * S);
+        return rgbShift(a, s, Math.round(s / 3), -s, -Math.round(s / 3));
+      }
       case 1: {
         const s = Math.max(1, Math.round(0.006 * S));
         return rgbShift(img, s, 0, -s, Math.round(s / 2));
@@ -766,37 +791,24 @@ const FX = (() => {
       case 4: return glitch(img, S, rng, 1);
       case 5: return pixelSort(img, 60, 200);
       case 6: return wobble(img, S);
-      case 7: {
-        let a = glitch(img, S, rng, 2);
-        a = pixelSort(a, 40, 230);
-        a = bandShift(a, rng, false, 0.01 * S, 0.08 * S, 0.5, 0.2 * S);
-        const s = Math.round(0.03 * S);
-        return rgbShift(a, s, Math.round(s / 3), -s, -Math.round(s / 3));
-      }
       default: return img;
     }
   }
 
   /* ---------- Paramètres et pipeline ---------- */
 
-  const VALUES = {
-    blur: [0, 1, 2, 4, 8, 16, 32, 64],
-    posterize: [2, 3, 4, 6, 8, 12, 16, 32],
-    edges: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1],
-  };
-
   // idx : indices (0-7) des 8 paramètres dans l'ordre d'affichage.
-  function process(src, idx) {
-    const scale = Math.max(src.w, src.h) / 1000;
-    let img = src;
-    img = geometry(img, idx[7]); // 7
-    img = gaussianBlur(img, VALUES.blur[idx[2]] * scale); // 5
-    img = style(img, idx[6], scale); // 8
-    img = posterize(img, VALUES.posterize[idx[3]]); // 2
-    img = edges(img, VALUES.edges[idx[5]], scale); // 6
-    img = recolor(img, idx[1]); // 1
-    img = fragment(img, idx[0], scale); // 3
-    img = distort(img, idx[4]); //4
+  function process(img, idx) {
+    const scale = Math.max(img.w, img.h) / 1000;
+
+    [0, 1, 2, 3, 4, 5, 6, 7].forEach(function (puzzle_id) {
+      const res = idx[puzzle_id]
+      const sol = PUZZLES.filter((x) => x.puzzle == puzzle_id)[0].val
+      if (sol != res) {
+        const mode = PUZZLES.filter((x) => x.puzzle != puzzle_id).map((x) => x.val).findIndex((x) => x == res)
+        img = PARAMS_FUNCTION[puzzle_id](img, mode, scale)
+      }
+    })
     return img;
   }
 

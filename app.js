@@ -1,39 +1,21 @@
 'use strict';
 
-const IMAGES = [
-  {
-    name: 'Bébé Hortense', src: 'image/Bébé Hortense.jpg', val: 0
-  },
-  {
-    name: 'Cousin Lewis', src: 'image/Cousin Lewis.jpg', val: 1
-  },
-  {
-    name: 'Dame Pétunia', src: 'image/Dame Pétunia.jpg', val: 2
-  },
-  {
-    name: 'Grand mère Anémone', src: 'image/Grand mère Anémone.jpg', val: 3
-  },
-  {
-    name: 'Grand père Cornelius', src: 'image/Grand père Cornelius.jpg', val: 4
-  },
-  {
-    name: 'Hannibal le Chat', src: 'image/Hannibal le Chat.jpg', val: 5
-  },
-  {
-    name: 'Mélusine', src: 'image/Mélusine.jpg', val: 6
-  },
-  {
-    name: 'Silex le chien', src: 'image/Silex le chien.jpg', val: 7
-  },
-];
-
-const SOLUTION = "11181111" //"31524687"
-const state = { idx: parseCode(location.hash.slice(1)) || [0, 1, 2, 3, 4, 5, 6, 7], src: null, timer: null };
+const state = { idx: parseCode(location.hash.slice(1)) || [7, 6, 5, 4, 3, 2, 1, 0], src: null, timer: null };
 const $ = id => document.getElementById(id);
 const controls = [];
 
+
+function get_image(image_id) {
+  let p = PUZZLES.filter((el) => (el.val == image_id))[0]
+  return { src: p.src, name: p.name }
+}
+
+function get_puzzle(puzzle_id) {
+  return PUZZLES.filter((el) => (el.puzzle == puzzle_id))[0]
+}
+
 function update_image_select(el, image_id, param_id) {
-  let p = IMAGES[image_id]
+  let p = get_image(image_id)
   el.querySelector("h2").innerText = `${param_id + 1}. ${p.name}`
   let img = el.querySelector("img")
   img.src = p.src
@@ -42,16 +24,18 @@ function update_image_select(el, image_id, param_id) {
 }
 
 function buildImageSelector(param_id, init_image_id) {
-  let p = IMAGES[init_image_id]
+  let p = get_image(init_image_id)
   const el = document.createElement('div');
   el.className = 'param';
   el.innerHTML = `
     <div class="param-head">
-      <button type="button"><</button>
+      <button class="btn" type="button"><</button>
       <h2>${param_id + 1}. ${p.name}</h2>
-      <button type="button">></button>
+      <button class="btn" type="button">></button>
     </div>
+    <div>
       <img src="${p.src}" alt="portrait de ${p.name}">
+    </div>
       <input type="range" min="0" max="7" step="1" value="${init_image_id}">`;
   const btns = el.querySelectorAll('button');
   const range = el.querySelector('input');
@@ -73,7 +57,7 @@ function refreshControls() {
   state.idx.forEach((v, k) => {
     controls[k].range.value = v;
   });
-  const code = state.idx.map(v => v + 1).join('');
+  const code = state.idx.map(v => v).join('');
   history.replaceState(null, '', '#' + code);
 
   if (code == SOLUTION) {
@@ -90,13 +74,14 @@ function setParam(k, v) {
 }
 
 function setAll(idx) {
+  console.log("setall", idx)
   state.idx = idx.slice();
   refreshControls();
   scheduleRender();
 }
 
 function parseCode(str) {
-  return /^[1-8]{8}$/.test(str) ? [...str].map(c => +c - 1) : null;
+  return /^[0-7]{8}$/.test(str) ? [...str].map(c => +c) : [7, 6, 5, 4, 3, 2, 1, 0];
 }
 
 /* ---------- Image ---------- */
@@ -152,6 +137,15 @@ function render() {
   state.result = out;
 }
 
+
+function showPuzzlePopup(puzzle_id) {
+  let puzzle = get_puzzle(puzzle_id)
+  let el = $("popup-container")
+  el.hidden = false
+  el.querySelector('h2').innerText = puzzle.desc;
+  el.querySelector('img').src = puzzle.psrc;
+}
+
 function init_map() {
   var map = L.map('map').setView([45.769239, 4.852714], 14);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -162,22 +156,26 @@ function init_map() {
   var track = L.polyline(TRACK_POINTS, { color: 'darkorange' }).addTo(map);
   map.fitBounds(track.getBounds());
 
-  var m1 = L.marker([45.775418, 4.856354], { title: "1" }).addTo(map);
-  var m2 = L.marker([45.777530, 4.853036], { title: "2" }).addTo(map);
-  var m3 = L.marker([45.777843, 4.845228], { title: "3" }).addTo(map);
-  var m4 = L.marker([45.771774, 4.843887], { title: "4" }).addTo(map);
-  var m5 = L.marker([45.768967, 4.847245], { title: "5" }).addTo(map);
-  var m6 = L.marker([45.763609, 4.848254], { title: "6" }).addTo(map);
-  var m7 = L.marker([45.762598, 4.857620], { title: "7" }).addTo(map);
-  var m8 = L.marker([45.768369, 4.859101], { title: "8" }).addTo(map);
-
+  const markers = [
+    L.marker([45.775418, 4.856354], { title: "1" }).addTo(map),
+    L.marker([45.777530, 4.853036], { title: "2" }).addTo(map),
+    L.marker([45.777843, 4.845228], { title: "3" }).addTo(map),
+    L.marker([45.771774, 4.843887], { title: "4" }).addTo(map),
+    L.marker([45.768967, 4.847245], { title: "5" }).addTo(map),
+    L.marker([45.763609, 4.848254], { title: "6" }).addTo(map),
+    L.marker([45.762598, 4.857620], { title: "7" }).addTo(map),
+    L.marker([45.768369, 4.859101], { title: "8" }).addTo(map),
+  ]
+  markers.forEach((el, idx) => el.addEventListener("click", () => showPuzzlePopup(idx)))
 
 }
 
 
 /* ---------- Événements ---------- */
-
 buildControls();
 setAll(parseCode(location.hash.slice(1)) || state.idx);
 loadDefault();
 init_map();
+
+$("popup-container").addEventListener("click", () => $("popup-container").hidden = true)
+$("popup").addEventListener("click", (e) => e.stopPropagation())

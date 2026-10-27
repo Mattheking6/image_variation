@@ -1,3 +1,5 @@
+// N'ALLEZ PAS PLUS LOIN SI VOUS NE VOULEZ PAS VOUS GACHER LES ENIGMES !!!!!
+
 const TRACK_POINTS = [[45.770442, 4.863069],
 [45.77042, 4.863027],
 [45.770406, 4.862742],
@@ -633,3 +635,65 @@ const TRACK_POINTS = [[45.770442, 4.863069],
 [45.770467, 4.863174],
 [45.770377, 4.863026],
 ]
+
+const PUZZLES = [
+    {
+        name: 'Bébé Hortense', src: 'image/Bébé Hortense.jpg', val: 0, puzzle: 1,
+        psrc: 'image/2.png',
+        desc: `Un petit détour vers ces étranges animaux qui accompagnent souvent nos bambins.`,
+        indice_1: `C'est comme le Porc-Salut (https://fr.wikipedia.org/wiki/Port-Salut_(marque_fromag%C3%A8re)), c'est marqué dessus.`,
+        indice_2: `C'est la 2ème étape, regardez bien chaque image.`
+    },
+    {
+        name: 'Cousin Lewis', src: 'image/Cousin Lewis.jpg', val: 1, puzzle: 3,
+        psrc: 'image/4.jpg',
+        desc: `Hé! Tu n'es pas dans ton jardin toi…`,
+        indice_1: `Oui, c'est un potimarron et pas une citrouille, hé alors, c'est pas assez flippant ?`,
+        indice_2: `Enfin, nous allons pouvoir te cuisiner maintenant que tu as fais ton office!`
+    },
+    {
+        name: 'Dame Pétunia', src: 'image/Dame Pétunia.jpg', val: 2, puzzle: 0,
+        psrc: 'image/1.jpg',
+        desc: `Le parcours commence dans les jardins botaniques du parc de la tête d'Or. Saurez-vous retrouver la référence cachée?`,
+        indice_1: `Ces photos sont inspirées d'un personnage fictif.`,
+        indice_2: `C'est le début de l'aventure, attention aux plantes carnivores!`
+    },
+    {
+        name: 'Grand mère Anémone', src: 'image/Grand mère Anémone.jpg', val: 3, puzzle: 4,
+        psrc: 'image/5.png',
+        desc: `Après tout ce trajet enfin un peu de réconfort.`,
+        indice_1: `L'important, c'est la boisson et non les personnages.Ne sommes-nous pas constitué à 60 % d'eau environ ?`,
+        indice_2: `Ce lieu bien plus près de chez nous qu'il n'y parrait est tout à fait recommandable.`,
+        answer: `Il faut placer Grand mère Anémone comme 5ème personnage`
+    },
+    {
+        name: 'Grand père Cornelius', src: 'image/Grand père Cornelius.jpg', val: 4, puzzle: 2,
+        psrc: 'image/3.png',
+        desc: `Une grande découverte dans la forêt du parc, serait-elle enchantée ?`,
+        indice_1: `Qu'est-ce qui pousse dans cette forêt?`,
+        indice_2: ``
+    },
+    {
+        name: 'Hannibal le Chat', src: 'image/Hannibal le Chat.jpg', val: 5, puzzle: 5,
+        psrc: 'image/6.png',
+        desc: `Un peu de lecture.`,
+        indice_1: `Arrêtez de toujours mélanger mes 2 définitions !`,
+        indice_2: `Ce panneau, ne le cherchez pas, il est malheureusement complètement fictif.`
+    },
+    {
+        name: 'Mélusine', src: 'image/Mélusine.jpg', val: 6, puzzle: 6,
+        psrc: 'image/7.jpg',
+        desc: `Quel chemin parcouru ! Suivez-vous ma trace ?`,
+        indice_1: `Prenez du recul, regardez bien la carte !`,
+        indice_2: `Bon, c'est mal dessiné, mais ça ressemble à une peluche quand même, non ?`
+    },
+    {
+        name: 'Silex le chien', src: 'image/Silex le chien.jpg', val: 7, puzzle: 7,
+        psrc: 'image/8.jpg',
+        desc: `Ce gros Cailloux une fois mis au carré aurait une hauteur de 16 641 mètres !`,
+        indice_1: `Il faut trouver le nom du batiment en arrière plan qui fait une hauteur de racine carré de 16 641 mètres`,
+        indice_2: `https://fr.wikipedia.org/wiki/Tour_Silex_2`
+    },
+];
+
+const SOLUTION = PUZZLES.sort((a, b) => a.puzzle - b.puzzle).map((x) => x.val).join('')
