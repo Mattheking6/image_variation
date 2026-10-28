@@ -40,7 +40,7 @@ function update_image_select(el, image_id, param_id) {
 function buildImageSelector(param_id, init_image_id) {
   let p = get_image(init_image_id)
   const el = document.createElement('div');
-  el.className = 'param';
+  el.className = 'param disabled';
   el.innerHTML = `
     <img src="${p.src}" alt="portrait de ${p.name}" loading="lazy" tabindex="0" role="button" aria-label="Agrandir le portrait de ${p.name}">
     <div class="param-info">

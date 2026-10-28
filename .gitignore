@@ -2,3 +2,8 @@ data/
 leaflet/
 .impeccable/
 .vscode/
+.secrets.*
+dist/
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
