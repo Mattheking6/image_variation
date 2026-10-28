@@ -1,8 +1,22 @@
 'use strict';
 
-const state = { idx: parseCode(location.hash.slice(1)) || [7, 6, 5, 4, 3, 2, 1, 0], src: null, timer: null };
+const DEFAULT_CODE = [6, 2, 3, 4, 7, 0, 1, 5]
+function readVisited() {
+  try {
+    const v = JSON.parse(sessionStorage.getItem('visited') || '[]');
+    if (Array.isArray(v)) return v.filter(n => Number.isInteger(n) && n >= 0 && n < 8);
+  } catch (e) {
+    const s = sessionStorage.getItem('visited');
+    if (s) return s.split(',').map(Number).filter(n => Number.isInteger(n) && n >= 0 && n < 8);
+  }
+  return [];
+}
+const state = { idx: parseCode(location.hash.slice(1)) || DEFAULT_CODE, src: null, timer: null, visited: readVisited() };
 const $ = id => document.getElementById(id);
 const controls = [];
+let countdownTimer = null;
+let winTimer = null;
+const DEADLINE = new Date('2027-05-04T00:00:00');
 
 
 function get_image(image_id) {
@@ -28,29 +42,29 @@ function buildImageSelector(param_id, init_image_id) {
   const el = document.createElement('div');
   el.className = 'param';
   el.innerHTML = `
-    <div class="param-head">
-      <button class="btn" type="button"><</button>
-      <h2>${param_id + 1}. ${p.name}</h2>
-      <button class="btn" type="button">></button>
-    </div>
-    <div>
-      <img src="${p.src}" alt="portrait de ${p.name}">
-    </div>
-      <input type="range" min="0" max="7" step="1" value="${init_image_id}">`;
+    <img src="${p.src}" alt="portrait de ${p.name}" loading="lazy" tabindex="0" role="button" aria-label="Agrandir le portrait de ${p.name}">
+    <div class="param-info">
+      <div class="param-head">
+        <button class="btn" type="button" aria-label="Image précédente"><</button>
+        <h2 id="param-title-${param_id}">${param_id + 1}. ${p.name}</h2>
+        <button class="btn" type="button" aria-label="Image suivante">></button>
+      </div>
+      <input type="range" min="0" max="7" step="1" value="${init_image_id}" aria-labelledby="param-title-${param_id}">
+    </div>`;
   const btns = el.querySelectorAll('button');
   const range = el.querySelector('input');
   range.addEventListener('input', () => update_image_select(el, +range.value, param_id));
   btns[0].addEventListener('click', () => update_image_select(el, ((parseInt(range.value) - 1) % 8 + 8) % 8, param_id));
   btns[1].addEventListener('click', () => update_image_select(el, ((parseInt(range.value) + 1) % 8 + 8) % 8, param_id));
-  controls.push({ range });
-  $('controls').appendChild(el);
+  controls[param_id] = { range };
+  el.dataset.idx = param_id
+  $([0, 1, 4, 5].includes(param_id) ? 'controls-left' : 'controls-right').appendChild(el);
 }
 
 
 function buildControls() {
-  state.idx.forEach((v, k) => {
-    buildImageSelector(k, v)
-  })
+  // Colonnes : 1,5 / 2,6 à gauche ; 3,7 / 4,8 à droite
+  [0, 4, 1, 5, 2, 6, 3, 7].forEach(k => buildImageSelector(k, state.idx[k]));
 }
 
 function refreshControls() {
@@ -60,11 +74,168 @@ function refreshControls() {
   const code = state.idx.map(v => v).join('');
   history.replaceState(null, '', '#' + code);
 
-  if (code == SOLUTION) {
-    $("map").hidden = true
-  } else {
-    $("map").hidden = false
+  applyViews()
+}
+
+function resizeMap() {
+  if (state.map) setTimeout(() => state.map.invalidateSize(), 60)
+  fitCanvas()
+}
+
+function applyViews() {
+  const won = state.idx.join('') === SOLUTION && state.visited.length == 8
+  if (won) {
+    // Morph vers l'image finale, puis 1 s plus tard : passage au panneau de victoire.
+    if (!state.finalShown) armFinalRender()
+    clearTimeout(winTimer)
+    winTimer = setTimeout(startWinTransition, FADE_MS + 1000)
+    return
   }
+  $("views").classList.remove("won")
+  $("success-container").hidden = true
+  state.finalShown = false
+  clearTimeout(winTimer)
+  winTimer = null
+  clearInterval(countdownTimer)
+  countdownTimer = null
+  endWinFlight()
+  resizeMap()
+}
+
+function armFinalRender() {
+  if (!state.src || state.finalShown) return
+  state.finalShown = true
+  clearTimeout(state.timer)
+  state.timer = setTimeout(() => requestAnimationFrame(() => setTimeout(render, 0)), 40)
+}
+
+function startWinTransition() {
+  winTimer = null
+  if (state.idx.join('') !== SOLUTION || state.visited.length != 8) return
+  if (!state.finalShown) {
+    winTimer = setTimeout(startWinTransition, 300)
+    return
+  }
+  beginWinFlight()
+  setTab("map")
+  $("views").classList.add("won")
+  openSuccess()
+  setTimeout(resizeMap, 60)
+  if (!countdownTimer) startCountdown()
+}
+
+function openSuccess() {
+  state.lastFocus = document.activeElement
+  $("success-container").hidden = false
+  $("success").focus()
+}
+
+function closeSuccess() {
+  $("success-container").hidden = true
+  if (state.lastFocus && typeof state.lastFocus.focus === "function") state.lastFocus.focus()
+}
+
+let winFlight = null;
+
+function beginWinFlight() {
+  const front = $("result-front");
+  const back = $("result");
+  const target = $("success-img");
+  const from = front.getBoundingClientRect();
+
+  $("win-slot")?.remove?.();
+  back.hidden = true;
+  front.style.transition = "opacity 300ms ease";
+  front.style.opacity = "0";
+  // L'image de victoire prend exactement la taille (et les coins) de l'image finale : aucun changement de taille.
+  if (from.width > 0) {
+    target.style.width = from.width + "px";
+    target.style.height = from.height + "px";
+    target.style.maxHeight = "none";
+    target.style.objectFit = "cover";
+  }
+  target.style.opacity = "0";
+
+  if (reducedMotion.matches || from.width === 0 || from.height === 0) {
+    target.style.transition = "none";
+    target.style.opacity = "1";
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    const to = target.getBoundingClientRect();
+    let ended = false;
+    const img = new Image();
+    img.src = front.toDataURL();
+    img.id = "win-slot";
+    img.style.cssText = `position: fixed; left: ${from.left}px; top: ${from.top}px; width: ${from.width}px; height: ${from.height}px; margin: 0; z-index: 1100; pointer-events: none; background: #0c0d10; border-radius: 6px;`;
+    document.body.appendChild(img);
+    winFlight = img;
+    const land = () => {
+      if (ended) return;
+      ended = true;
+      // L'image finale (au premier plan) s'efface en fondu et révèle l'image de victoire dessous.
+      target.style.transition = "opacity 2000ms ease";
+      target.style.opacity = "1";
+      img.style.transition = "opacity 2000ms ease";
+      img.style.opacity = "0";
+      setTimeout(() => {
+        img.remove();
+        if (winFlight === img) winFlight = null;
+      }, 2060);
+    };
+    const fly = () => {
+      img.style.transition = "transform 1000ms cubic-bezier(.45, 0, .2, 1)";
+      img.style.transformOrigin = "top left";
+      img.style.transform = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
+      img.addEventListener("transitionend", land, { once: true });
+      setTimeout(land, 1150);
+    };
+    if (img.complete) fly();
+    else img.onload = fly;
+  });
+}
+
+function endWinFlight() {
+  if (winFlight) {
+    winFlight.remove();
+    winFlight = null;
+  }
+  const target = $("success-img");
+  target.style.transition = "none";
+  target.style.opacity = "";
+  target.style.transform = "";
+  target.style.width = "";
+  target.style.height = "";
+  target.style.maxHeight = "";
+  target.style.objectFit = "";
+  $("result").hidden = false;
+  const front = $("result-front");
+  if (front) {
+    front.style.transition = "none";
+    front.style.opacity = "1";
+  }
+}
+
+function startCountdown() {
+  const el = $("countdown")
+  const pad = (n) => String(n).padStart(2, '0')
+  const tick = () => {
+    const diff = DEADLINE - Date.now()
+    if (diff <= 0) {
+      el.textContent = 'Le 4 mai 2027 est arrivé.'
+      clearInterval(countdownTimer)
+      countdownTimer = null
+      return
+    }
+    const d = Math.floor(diff / 86400000)
+    const h = Math.floor(diff / 3600000) % 24
+    const m = Math.floor(diff / 60000) % 60
+    const s = Math.floor(diff / 1000) % 60
+    el.textContent = `${d} j ${pad(h)} h ${pad(m)} min ${pad(s)} s`
+  }
+  tick()
+  countdownTimer = setInterval(tick, 1000)
 }
 
 function setParam(k, v) {
@@ -74,14 +245,13 @@ function setParam(k, v) {
 }
 
 function setAll(idx) {
-  console.log("setall", idx)
   state.idx = idx.slice();
   refreshControls();
   scheduleRender();
 }
 
 function parseCode(str) {
-  return /^[0-7]{8}$/.test(str) ? [...str].map(c => +c) : [7, 6, 5, 4, 3, 2, 1, 0];
+  return /^[0-7]{8}$/.test(str) ? [...str].map(c => +c) : DEFAULT_CODE;
 }
 
 /* ---------- Image ---------- */
@@ -113,28 +283,119 @@ function loadFile(file) {
 function loadDefault() {
   // En file://, l'image polluerait le canvas ; on laisse la zone de dépôt.
   if (!/^https?:$/.test(location.protocol)) return;
-  state.name = 'wip1';
+  state.name = 'wip';
   const img = new Image();
   img.onload = () => loadImage(img);
-  img.src = 'image/wip1.png';
+  img.src = 'image/wip4.png';
 }
 
 /* ---------- Rendu ---------- */
 
 function scheduleRender() {
   if (!state.src) return;
+  if (state.idx.join('') === SOLUTION) {
+    // Code trouvé : on rend l'image finale une seule fois (la victoire suit).
+    if (state.visited.length == 8) armFinalRender();
+    return;
+  }
   clearTimeout(state.timer);
   // Laisse le navigateur afficher le statut avant le calcul (bloquant).
   state.timer = setTimeout(() => requestAnimationFrame(() => setTimeout(render, 0)), 40);
 }
 
+let fadeTimer = null;
+let fading = false;
+const FADE_MS = 500;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
 function render() {
   const t0 = performance.now();
   const out = FX.process(state.src, state.idx);
-  const c = $('result');
-  c.width = out.w; c.height = out.h;
-  c.getContext('2d').putImageData(new ImageData(out.d, out.w, out.h), 0, 0);
+  const back = $('result');
+  back.width = out.w; back.height = out.h;
+  back.getContext('2d').putImageData(new ImageData(out.d, out.w, out.h), 0, 0);
   state.result = out;
+  fitCanvas();
+  startFade();
+}
+
+function winBox() {
+  // Taille à l'écran de l'image de victoire (wip3) : la taille de référence de l'aperçu.
+  const img = $("success-img");
+  const nw = img.naturalWidth || 338, nh = img.naturalHeight || 237;
+  const mh = parseFloat(getComputedStyle(img).maxHeight) || 200;
+  let w = Math.min(nw, Math.max(10, $("canvas-figure").clientWidth - 4));
+  let h = w * nh / nw;
+  if (h > mh) {
+    h = mh;
+    w = h * nw / nh;
+  }
+  return { w: Math.round(w), h: Math.round(h) };
+}
+
+function fitCanvas() {
+  const back = $('result');
+  if (!back.width || !back.height) return;
+  const fig = $('canvas-figure');
+  const ratio = back.width / back.height;
+  const box = winBox();
+  const aw = Math.max(10, Math.min(fig.clientWidth - 4, box.w));
+  const ah = Math.max(10, Math.min(fig.clientHeight - 24, box.h));
+  let dw = Math.min(back.width, aw);
+  let dh = dw / ratio;
+  if (dh > ah) {
+    dh = ah;
+    dw = dh * ratio;
+  }
+  back.style.width = dw + 'px';
+  back.style.height = dh + 'px';
+}
+
+function copyCanvas(dst, src) {
+  dst.width = src.width;
+  dst.height = src.height;
+  dst.getContext('2d').drawImage(src, 0, 0);
+}
+
+function startFade() {
+  const back = $('result');
+  const front = $('result-front');
+
+  if (fading) {
+    clearTimeout(fadeTimer)
+    const a = parseFloat(getComputedStyle(front).opacity) || 0
+    const tmp = state.tmp ||= document.createElement('canvas')
+    copyCanvas(tmp, back)
+    const tctx = tmp.getContext('2d')
+    tctx.globalCompositeOperation = 'source-over'
+    tctx.clearRect(0, 0, tmp.width, tmp.height)
+    tctx.globalAlpha = 1 - a
+    tctx.drawImage(back, 0, 0)
+    tctx.globalAlpha = a
+    tctx.drawImage(front, 0, 0)
+    copyCanvas(front, tmp)
+    front.style.transition = 'none'
+    front.style.opacity = '1'
+    front.getBoundingClientRect()
+    fading = false
+  }
+
+  if (front.width !== back.width || front.height !== back.height || reducedMotion.matches) {
+    copyCanvas(front, back)
+    front.style.transition = 'none'
+    front.style.opacity = '1'
+    return
+  }
+
+  fading = true
+  front.style.transition = `opacity ${FADE_MS}ms linear`
+  front.style.opacity = '0'
+  fadeTimer = setTimeout(() => {
+    copyCanvas(front, back)
+    front.style.transition = 'none'
+    front.style.opacity = '1'
+    fading = false
+  }, FADE_MS)
 }
 
 
@@ -143,31 +404,114 @@ function showPuzzlePopup(puzzle_id) {
   let el = $("popup-container")
   el.hidden = false
   el.querySelector('h2').innerText = puzzle.desc;
-  el.querySelector('img').src = puzzle.psrc;
+  const img = el.querySelector('img')
+  img.hidden = true
+  img.onload = img.onerror = () => (img.hidden = false)
+  img.src = puzzle.psrc;
+
+  const steps = [
+    { label: 'Indice', text: puzzle.indice_1 },
+    { label: '2ᵉ indice', text: puzzle.indice_2 },
+    { label: 'Réponse', text: `Il faut mettre ${puzzle.name} en ${puzzle.puzzle + 1}ᵉ position.`, kind: 'answer' },
+  ].filter((s) => s.text)
+
+  const hints = $("popup-hints")
+  const btn = $("hint-btn")
+  hints.innerHTML = ''
+  let shown = 0
+
+  const update = () => {
+    if (shown < steps.length) {
+      btn.hidden = false
+      btn.innerText = steps[shown].label
+    } else {
+      btn.hidden = true
+    }
+  }
+
+  btn.onclick = () => {
+    const s = steps[shown]
+    const p = document.createElement('p')
+    p.className = 'hint' + (s.kind === 'answer' ? ' answer' : '')
+    const label = document.createElement('span')
+    label.className = 'hint-label'
+    label.textContent = s.label + ' - '
+    p.appendChild(label)
+    p.appendChild(document.createTextNode(s.text))
+    hints.appendChild(p)
+    shown++
+    update()
+  }
+  update()
+
+  state.lastFocus = document.activeElement
+  $("popup").focus()
+}
+
+function closePopup() {
+  $("popup-container").hidden = true
+  if (state.lastFocus && typeof state.lastFocus.focus === 'function') state.lastFocus.focus()
+}
+
+function openZoom(index) {
+  const p = get_image(controls[index].range.value)
+  const img = $("zoom-img")
+  img.hidden = true
+  img.onload = img.onerror = () => (img.hidden = false)
+  img.src = p.src
+  img.alt = `Portrait agrandi de ${p.name}`
+  $("zoom-title").textContent = `${index + 1}. ${p.name}`
+  state.lastFocus = document.activeElement
+  $("zoom-container").hidden = false
+  $("zoom").focus()
+}
+
+function closeZoom() {
+  $("zoom-container").hidden = true
+  if (state.lastFocus && typeof state.lastFocus.focus === 'function') state.lastFocus.focus()
 }
 
 function init_map() {
-  var map = L.map('map').setView([45.769239, 4.852714], 14);
+  var map = state.map = L.map('map').setView([45.769239, 4.852714], 14);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+    maxZoom: 18,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
 
-  var track = L.polyline(TRACK_POINTS, { color: 'darkorange' }).addTo(map);
+  var track = L.polyline(TRACK_POINTS, { color: '#f5a524' }).addTo(map);
   map.fitBounds(track.getBounds());
 
-  const markers = [
-    L.marker([45.775418, 4.856354], { title: "1" }).addTo(map),
-    L.marker([45.777530, 4.853036], { title: "2" }).addTo(map),
-    L.marker([45.777843, 4.845228], { title: "3" }).addTo(map),
-    L.marker([45.771774, 4.843887], { title: "4" }).addTo(map),
-    L.marker([45.768967, 4.847245], { title: "5" }).addTo(map),
-    L.marker([45.763609, 4.848254], { title: "6" }).addTo(map),
-    L.marker([45.762598, 4.857620], { title: "7" }).addTo(map),
-    L.marker([45.768369, 4.859101], { title: "8" }).addTo(map),
+  const points = [
+    [45.775418, 4.856354],
+    [45.777530, 4.853036],
+    [45.777843, 4.845228],
+    [45.771774, 4.843887],
+    [45.768967, 4.847245],
+    [45.763609, 4.848254],
+    [45.762598, 4.857620],
+    [45.768369, 4.859101],
   ]
-  markers.forEach((el, idx) => el.addEventListener("click", () => showPuzzlePopup(idx)))
+  state.markers = points.map((p, i) =>
+    L.marker(p, { title: `Lieu ${i + 1}`, alt: `Lieu ${i + 1}`, icon: badgeIcon(i, !state.visited.includes(i)) })
+      .addTo(map)
+  )
+  state.markers.forEach((m, i) => m.addEventListener('click', () => {
+    if (!state.visited.includes(i)) {
+      state.visited = state.visited.concat([i])
+      sessionStorage.setItem('visited', JSON.stringify(state.visited))
+      state.markers.forEach((other, j) => other.setIcon(badgeIcon(j, !state.visited.includes(j))))
+    }
+    showPuzzlePopup(i)
+  }))
+}
 
+function badgeIcon(n, locked) {
+  return L.divIcon({
+    className: 'puzzle-badge' + (locked ? ' locked' : ''),
+    html: `<span>${n + 1}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  })
 }
 
 
@@ -177,5 +521,56 @@ setAll(parseCode(location.hash.slice(1)) || state.idx);
 loadDefault();
 init_map();
 
-$("popup-container").addEventListener("click", () => $("popup-container").hidden = true)
+$("popup-container").addEventListener("click", closePopup)
 $("popup").addEventListener("click", (e) => e.stopPropagation())
+$("popup-close").addEventListener("click", closePopup)
+$("success-container").addEventListener("click", closeSuccess)
+$("success").addEventListener("click", (e) => e.stopPropagation())
+$("success-close").addEventListener("click", closeSuccess)
+$("zoom-container").addEventListener("click", closeZoom)
+$("zoom").addEventListener("click", (e) => e.stopPropagation())
+$("zoom-close").addEventListener("click", closeZoom)
+document.addEventListener("click", (e) => {
+  const img = e.target.closest(".param img")
+  if (img) openZoom(+img.closest(".param").dataset.idx)
+})
+document.addEventListener("keydown", (e) => {
+  if ((e.key !== "Enter" && e.key !== " ") || !e.target.matches(".param img")) return
+  e.preventDefault()
+  openZoom(+e.target.closest(".param").dataset.idx)
+})
+function setTab(tab) {
+  $("views").dataset.tab = tab
+  $("tab-canvas").classList.toggle("active", tab === "canvas")
+  $("tab-map").classList.toggle("active", tab === "map")
+  resizeMap()
+}
+$("tab-canvas").addEventListener("click", () => setTab("canvas"))
+$("tab-map").addEventListener("click", () => setTab("map"))
+window.addEventListener("resize", resizeMap)
+document.addEventListener("keydown", (e) => {
+  const isPopup = !$("popup-container").hidden
+  const isZoom = !$("zoom-container").hidden
+  const isSuccess = !$("success-container").hidden
+  if (!isPopup && !isZoom && !isSuccess) return
+  if (e.key === "Escape") {
+    if (isPopup) closePopup()
+    else if (isZoom) closeZoom()
+    else closeSuccess()
+    return
+  }
+  if (e.key !== "Tab") return
+  const panel = isPopup ? $("popup") : isZoom ? $("zoom") : $("success")
+  const focusables = [...panel.querySelectorAll("button, [tabindex]")].filter((b) => !b.hidden)
+  const targets = focusables.length ? focusables : [panel]
+  const first = targets[0]
+  const last = targets[targets.length - 1]
+  const active = document.activeElement
+  if (e.shiftKey && (active === first || active === panel)) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault()
+    first.focus()
+  }
+})

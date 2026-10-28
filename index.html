@@ -7,36 +7,70 @@
   <title>Enigmes d'automne</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="leaflet/dist/leaflet.css" />
-  <script src="leaflet/dist/leaflet.js"></script>
+  <script src="leaflet/dist/leaflet.js" defer></script>
 </head>
 
 <body>
   <header>
     <h1>Enigmes d'automne</h1>
+    <p class="help">Ajustez les 8 portraits pour composer l'image finale. cliquez sur les numéros de la carte pour
+      découvrir les lieux et leurs indices.</p>
   </header>
 
-  <main>
-    <section id="views">
+  <main id="app">
+    <section id="views" data-tab="canvas">
+      <div id="view-toggle" role="group" aria-label="Affichage">
+        <button id="tab-canvas" class="btn tab active" type="button">Aperçu</button>
+        <button id="tab-map" class="btn tab" type="button">Carte</button>
+      </div>
       <div id="map"></div>
-      <figure>
-        <canvas id="result"></canvas>
+      <figure id="canvas-figure">
+        <div id="canvas-stack">
+          <canvas id="result" role="img" aria-label="Aperçu des transformations appliquées à l'image"></canvas>
+          <canvas id="result-front" aria-hidden="true"></canvas>
+        </div>
       </figure>
     </section>
-    <section id="controls"></section>
+    <aside id="controls-left" aria-label="Personnages 1, 2, 5 et 6"></aside>
+    <aside id="controls-right" aria-label="Personnages 3, 4, 7 et 8"></aside>
   </main>
-
+  <div id="success-container" hidden>
+    <section id="success" role="dialog" aria-modal="true" aria-labelledby="success-title" tabindex="-1">
+      <button id="success-close" class="btn" type="button" aria-label="Fermer">×</button>
+      <h2 id="success-title">Cheers !</h2>
+      <img id="success-img" src="image/wip3.png" alt="Image de félicitations">
+      <p>Bravo, le parcours est terminé ! Merci d'avoir suivi nos traces.</p>
+      <p>Pour WIP (nom de code de la crevette ci-dessus), il reste encore un bout de chemin ...</p>
+      <div id="countdown" role="timer" aria-live="off"></div>
+    </section>
+  </div>
   <div id="popup-container" hidden>
-    <div id="popup">
-      <h2></h2>
+    <div id="popup" role="dialog" aria-modal="true" aria-labelledby="popup-title" tabindex="-1">
+      <button id="popup-close" class="btn" type="button" aria-label="Fermer">×</button>
+      <h2 id="popup-title"></h2>
+      <div id="popup-body">
+        <figure>
+          <img alt="image puzzle" src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAAAACw=">
+        </figure>
+        <div id="popup-hints" aria-live="polite"></div>
+        <button id="hint-btn" class="btn" type="button" hidden></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="zoom-container" hidden>
+    <div id="zoom" role="dialog" aria-modal="true" aria-labelledby="zoom-title" tabindex="-1">
+      <button id="zoom-close" class="btn" type="button" aria-label="Fermer">×</button>
       <figure>
-        <img alt="image puzzle">
+        <img id="zoom-img" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAAAACw=">
+        <figcaption id="zoom-title"></figcaption>
       </figure>
     </div>
   </div>
 
-  <script src="effects.js"></script>
-  <script src="constants.js"></script>
-  <script src="app.js"></script>
+  <script src="effects.js" defer></script>
+  <script src="constants.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 
 </html>

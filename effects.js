@@ -488,8 +488,8 @@ const FX = (() => {
   /* ---------- 1. Fragmentation (carrés, puzzle, cubes) ---------- */
 
   const FRAG = [
-    { n: 6, swap: 0, rot: 0.35 },                                              // Carrés tournés
-    { n: 6, swap: 0.35, rot: 0.15 },                                           // Carrés échangés
+    { n: 6, swap: 0, rot: 0.8 },                                              // Carrés tournés
+    { n: 6, swap: 0.8, rot: 0.15 },                                           // Carrés échangés
     { n: 9, swap: 1, rot: 0.5 },                                               // Carrés mélangés
     { n: 6, jig: true, swap: 0.35, rot: 0.15 },                                // Puzzle imparfait
     { n: 7, jig: true, swap: 1, rot: 0.5 },                                    // Puzzle mélangé
