@@ -15,14 +15,11 @@
     <h1>Enigmes d'automne</h1>
     <p class="help">Ajustez les 8 portraits pour composer l'image finale. cliquez sur les numéros de la carte pour
       découvrir les lieux et leurs indices.</p>
+    <button id="help-btn" class="btn" type="button" aria-label="Aide">?</button>
   </header>
 
   <main id="app">
-    <section id="views" data-tab="canvas">
-      <div id="view-toggle" role="group" aria-label="Affichage">
-        <button id="tab-canvas" class="btn tab active" type="button">Aperçu</button>
-        <button id="tab-map" class="btn tab" type="button">Carte</button>
-      </div>
+    <section id="views">
       <div id="map"></div>
       <figure id="canvas-figure">
         <div id="canvas-stack">
@@ -31,8 +28,8 @@
         </div>
       </figure>
     </section>
-    <aside id="controls-left" aria-label="Personnages 1, 2, 5 et 6"></aside>
-    <aside id="controls-right" aria-label="Personnages 3, 4, 7 et 8"></aside>
+    <aside id="controls-left" aria-label="Cartes des portraits"></aside>
+    <aside id="controls-right" aria-label="Cartes des portraits"></aside>
   </main>
   <div id="success-container" hidden>
     <section id="success" role="dialog" aria-modal="true" aria-labelledby="success-title" tabindex="-1">
@@ -66,6 +63,15 @@
         <figcaption id="zoom-title"></figcaption>
       </figure>
     </div>
+  </div>
+
+  <div id="help-container" hidden>
+    <section id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" tabindex="-1">
+      <button id="help-close" class="btn" type="button" aria-label="Fermer">×</button>
+      <h2 id="help-title">Comment jouer&nbsp;?</h2>
+      <p>Ajustez les 8 portraits pour composer l'image finale.</p>
+      <p>Cliquez sur les numéros de la carte pour découvrir les lieux et leurs indices.</p>
+    </section>
   </div>
 
   <script src="effects.js" defer></script>

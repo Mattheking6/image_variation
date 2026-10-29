@@ -31,6 +31,13 @@ resource "scaleway_object_bucket" "site" {
   region = var.region
 }
 
+# The Edge Services origin fetches this bucket anonymously, so the bucket
+# must be public-read or every request is passed through as S3 403.
+resource "scaleway_object_bucket_acl" "site" {
+  bucket = scaleway_object_bucket.site.name
+  acl    = "public-read"
+}
+
 resource "scaleway_object_bucket_website_configuration" "site" {
   bucket = scaleway_object_bucket.site.name
 
@@ -61,21 +68,13 @@ resource "scaleway_edge_services_tls_stage" "site" {
   managed_certificate = true
 }
 
-resource "scaleway_domain_zone" "site" {
-  count     = var.domain != "" ? 1 : 0
-  domain    = var.domain
-  subdomain = ""
-}
-
 resource "scaleway_edge_services_dns_stage" "site" {
   pipeline_id  = scaleway_edge_services_pipeline.site.id
   tls_stage_id = scaleway_edge_services_tls_stage.site.id
   fqdns        = var.domain != "" ? [var.domain] : []
-  # With a Scaleway-managed domain, setting fqdns makes Scaleway
-  # auto-create the CNAME pointing at the pipeline's standard
-  # endpoint. Do NOT manage that CNAME with scaleway_domain_record:
-  # the Edge Services pipeline owns it.
-  depends_on = [scaleway_domain_zone.site]
+  # DNS zone / CNAME for the domain are managed in the Scaleway console:
+  # the Edge Services pipeline owns the CNAME, and root zones cannot be
+  # created through the Domain API (subdomain is always required).
 }
 
 resource "scaleway_edge_services_head_stage" "site" {

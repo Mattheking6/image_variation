@@ -78,6 +78,7 @@ echo "==> syncing dist/ to s3://${BUCKET} via ${ENDPOINT}"
 # (same size) are skipped.
 aws s3 sync "$ROOT/dist" "s3://${BUCKET}" \
   --endpoint-url "$ENDPOINT" \
+  --acl "public-read" \
   --delete
 
 echo

@@ -8,9 +8,9 @@ bucket_name   = "image-variation-site"
 pipeline_name = "image-variation"
 
 # Custom domain, or "" for the default <pipeline-id>.svc.edge.scw.cloud endpoint.
-# If the domain is registered with Scaleway, the zone is adopted automatically
-# and the CNAME is created by the Edge Services pipeline. For an external
-# domain you must create the CNAME yourself (target: edge_endpoint output).
+# For a Scaleway-registered domain the Edge Services pipeline manages the
+# CNAME (name it in the console / set it here); for an external domain create
+# a CNAME yourself pointing to the edge_endpoint output.
 domain = ""
 
 edge_services_plan = "starter"
