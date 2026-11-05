@@ -495,8 +495,20 @@ function showPuzzlePopup(puzzle_id) {
   el.hidden = false;
   el.querySelector('h2').innerText = puzzle.desc;
   const img = el.querySelector('img');
+  const spinner = el.querySelector('.popup-spinner');
   img.hidden = true;
-  img.onload = img.onerror = () => (img.hidden = false);
+  let settled = false;
+  const showTimer = setTimeout(() => {
+    if (!settled) spinner.hidden = false;
+  }, 300);
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(showTimer);
+    img.hidden = false;
+    spinner.hidden = true;
+  };
+  img.onload = img.onerror = settle;
   img.src = puzzle.psrc;
 
   const steps = [
