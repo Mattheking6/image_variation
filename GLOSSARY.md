@@ -8,8 +8,9 @@ provide the hints.
 
 **Detail screen**:
 A modal overlay shown over the game. Four detail screens exist: the hint popup
-(a puzzle location's photo and progressive hints), the portrait zoom (one portrait
-enlarged), the victory dialog, and the help detail screen.
+(a puzzle location's photo and progressive hints), the portrait zoom
+(an enlarged portrait card, whose previous/next controls work), the victory
+dialog, and the help detail screen.
 _Avoid_: modal, popup, dialog (each used alone to name a specific detail screen is
 fine; the umbrella term is "detail screen")
 
@@ -49,5 +50,4 @@ layout.
 _Avoid_: carousel, card row, scroller
 
 **Help detail screen**:
-The detail screen showing how to play; opened from the “?” button in the header
-(compact layout only, where the help text is not shown inline).
+The detail screen showing how to play; opened from the “Aide” button in the header.

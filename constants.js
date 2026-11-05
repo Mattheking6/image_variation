@@ -696,7 +696,7 @@ const PUZZLES = [
     psrc: 'image/6.png',
     desc: `Un peu de lecture.`,
     indice_1: `Arrêtez de toujours mélanger mes 2 définitions !`,
-    indice_2: `Ce panneau, ne le cherchez pas, il est malheureusement complètement fictif.`
+    indice_2: `Souvenez-vous que les personnages ont aussi des noms.`
   },
   {
     name: 'Mélusine',
@@ -715,7 +715,7 @@ const PUZZLES = [
     puzzle: 6,
     psrc: 'image/8.jpg',
     desc: `Ce gros Cailloux une fois mis au carré aurait une hauteur de 16 641 mètres !`,
-    indice_1: `Il faut trouver le nom du batiment en arrière plan qui fait une hauteur de racine carré de 16 641 mètres`,
+    indice_1: `Il faut trouver le nom du batiment en arrière plan. Souvenez-vous que les personnages ont aussi des noms.`,
     indice_2: `https://fr.wikipedia.org/wiki/Tour_Silex_2`
   }
 ];

@@ -31,6 +31,7 @@ let lastFlank = null;
 const DEADLINE = new Date('2027-05-04T00:00:00');
 
 function get_image(image_id) {
+  console.log("get_image", image_id)
   let p = PUZZLES.filter(el => el.val == image_id)[0];
   return { src: p.src, name: p.name };
 }
@@ -43,15 +44,21 @@ function update_image_select(el, image_id, param_id) {
   let p = get_image(image_id);
   let img = el.querySelector('img');
   img.src = p.src;
-  img.alt = 'portrait de ${p.name}';
+  img.alt = `portrait de ${p.name}`;
   el.querySelector('h2').innerText = p.name;
+  if (el != cards[param_id]) {
+    let img_card = cards[param_id].querySelector('img');
+    img_card.src = p.src;
+    img_card.alt = `portrait de ${p.name}`;
+    cards[param_id].querySelector('h2').innerText = p.name;
+  }
   setParam(param_id, +image_id);
 }
 
-function buildImageSelector(param_id, init_image_id) {
+function buildImageSelector(param_id, init_image_id, el_id) {
   let p = get_image(init_image_id);
   const el = document.createElement('div');
-  el.id = `control_${param_id}`;
+  el.id = el_id;
   el.className = 'param';
   el.innerHTML = `
     <div class="param-thumb">
@@ -61,21 +68,10 @@ function buildImageSelector(param_id, init_image_id) {
       <button class="btn param-nav next" type="button" aria-label="Image suivante">></button>
     </div>
     <div class="param-info">
-      <h2 id="param-title-${param_id}">${p.name}</h2>
-      <input type="range" min="0" max="7" step="1" value="${init_image_id}" aria-labelledby="param-title-${param_id}">
+      <h2 id="${el_id}-title">${p.name}</h2>
     </div>`;
-  const btns = el.querySelectorAll('button');
-  const range = el.querySelector('input');
-  range.addEventListener('input', () => update_image_select(el, +range.value, param_id));
-  btns[0].addEventListener('click', () =>
-    update_image_select(el, (((parseInt(range.value) - 1) % 8) + 8) % 8, param_id)
-  );
-  btns[1].addEventListener('click', () =>
-    update_image_select(el, (((parseInt(range.value) + 1) % 8) + 8) % 8, param_id)
-  );
-  controls[param_id] = { range };
   el.dataset.idx = param_id;
-  cards[param_id] = el;
+  return el;
 }
 
 /* Layout-dependent card placement (see ADR-0001): the flank layout splits
@@ -100,31 +96,43 @@ function placeCards() {
 
 flankQuery.addEventListener('change', placeCards);
 
+function add_btn_listeners(el, param_id) {
+  const range = controls[param_id].range
+  const btns = el.querySelectorAll('button');
+  btns[0].addEventListener('click', () =>
+    update_image_select(el, (((parseInt(+range.value) - 1) % 8) + 8) % 8, param_id)
+  );
+  btns[1].addEventListener('click', () =>
+    update_image_select(el, (((parseInt(+range.value) + 1) % 8) + 8) % 8, param_id)
+  );
+}
+
 function buildControls() {
-  [0, 1, 2, 3, 4, 5, 6, 7].forEach(k => buildImageSelector(k, state.idx[k]));
+  [0, 1, 2, 3, 4, 5, 6, 7].forEach(function (k) {
+    cards[k] = buildImageSelector(k, state.idx[k], `control_${k}`);
+    const range = document.createElement("input");
+    range.setAttribute('type', 'range');
+    range.setAttribute('min', '0');
+    range.setAttribute('max', '7');
+    range.setAttribute('step', '1');
+    range.setAttribute('value', state.idx[k]);
+    range.setAttribute('aria-labelledby', `${cards[k].id}-title`);
+    cards[k].appendChild(range);
+    const img = cards[k].querySelector('img');
+    img.addEventListener('click', e => openZoom(k));
+    controls[k] = { range };
+    add_btn_listeners(cards[k], k)
+  })
   placeCards();
 }
 
 function refreshControls() {
-  console.log(state.visited.values());
   state.idx.forEach((v, k) => {
     controls[k].range.value = v;
     let control = $(`control_${k}`);
     let btns = control.querySelectorAll('.btn');
     const disabled = control.hasAttribute('disabled');
     const visited = state.visited.includes(k);
-    console.log(
-      k,
-      v,
-      'visited',
-      visited,
-      'disabled',
-      disabled,
-      'visited & disabled',
-      visited & disabled,
-      '!visited & !disabled',
-      !visited & !disabled
-    );
     if (visited & disabled) {
       control.removeAttribute('disabled');
       btns.forEach(el => el.removeAttribute('disabled'));
@@ -314,6 +322,7 @@ function startCountdown() {
 }
 
 function setParam(k, v) {
+  console.log("Set param ", k, v)
   state.idx[k] = v;
   refreshControls();
   scheduleRender();
@@ -535,13 +544,11 @@ function closePopup() {
 }
 
 function openZoom(index) {
-  const p = get_image(controls[index].range.value);
-  const img = $('zoom-img');
-  img.hidden = true;
-  img.onload = img.onerror = () => (img.hidden = false);
-  img.src = p.src;
-  img.alt = `Portrait agrandi de ${p.name}`;
-  $('zoom-title').textContent = `${index + 1}. ${p.name}`;
+  const el = buildImageSelector(index, controls[index].range.value, "control-zoom");
+  add_btn_listeners(el, index)
+  const fc = $('zoom-img').firstElementChild;
+  fc.replaceWith(el);
+
   state.lastFocus = document.activeElement;
   $('zoom-container').hidden = false;
   $('zoom').focus();
@@ -621,6 +628,10 @@ setAll(parseCode(location.hash.slice(1)) || state.idx);
 loadDefault();
 init_map();
 
+if (state.visited.length == 0) {
+  openHelp();
+}
+
 $('popup-container').addEventListener('click', closePopup);
 $('popup').addEventListener('click', e => e.stopPropagation());
 $('popup-close').addEventListener('click', closePopup);
@@ -634,15 +645,6 @@ $('help-btn').addEventListener('click', openHelp);
 $('help-container').addEventListener('click', closeHelp);
 $('help').addEventListener('click', e => e.stopPropagation());
 $('help-close').addEventListener('click', closeHelp);
-document.addEventListener('click', e => {
-  const img = e.target.closest('.param img');
-  if (img) openZoom(+img.closest('.param').dataset.idx);
-});
-document.addEventListener('keydown', e => {
-  if ((e.key !== 'Enter' && e.key !== ' ') || !e.target.matches('.param img')) return;
-  e.preventDefault();
-  openZoom(+e.target.closest('.param').dataset.idx);
-});
 window.addEventListener('resize', resizeMap);
 document.addEventListener('keydown', e => {
   const isPopup = !$('popup-container').hidden;

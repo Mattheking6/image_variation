@@ -13,9 +13,7 @@
 <body>
   <header>
     <h1>Enigmes d'automne</h1>
-    <p class="help">Ajustez les 8 portraits pour composer l'image finale. cliquez sur les numéros de la carte pour
-      découvrir les lieux et leurs indices.</p>
-    <button id="help-btn" class="btn" type="button" aria-label="Aide">?</button>
+    <button id="help-btn" class="btn" type="button" aria-label="Aide">Aide</button>
   </header>
 
   <main id="app">
@@ -49,19 +47,18 @@
         <figure>
           <img alt="image puzzle" src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAAAACw=">
         </figure>
-        <div id="popup-hints" aria-live="polite"></div>
-        <button id="hint-btn" class="btn" type="button" hidden></button>
       </div>
+      <button id="hint-btn" class="btn" type="button" hidden></button>
+      <div id="popup-hints" aria-live="polite"></div>
     </div>
   </div>
 
   <div id="zoom-container" hidden>
-    <div id="zoom" role="dialog" aria-modal="true" aria-labelledby="zoom-title" tabindex="-1">
+    <div id="zoom" role="dialog" aria-modal="true" tabindex="-1">
       <button id="zoom-close" class="btn" type="button" aria-label="Fermer">×</button>
-      <figure>
-        <img id="zoom-img" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAAAACw=">
-        <figcaption id="zoom-title"></figcaption>
-      </figure>
+      <div id="zoom-img">
+        <div></div>
+      </div>
     </div>
   </div>
 
@@ -69,8 +66,10 @@
     <section id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" tabindex="-1">
       <button id="help-close" class="btn" type="button" aria-label="Fermer">×</button>
       <h2 id="help-title">Comment jouer&nbsp;?</h2>
-      <p>Ajustez les 8 portraits pour composer l'image finale.</p>
       <p>Cliquez sur les numéros de la carte pour découvrir les lieux et leurs indices.</p>
+      <p>Chaque fois que vous visitez un lieu, le selecteur d'image avec le même numéro que le lieu s'active.</p>
+      <p>Vous pouvez alors ajuster le portrait correspondant pour composer l'image finale.</p>
+      <p>Amusez-vous bien !</p>
     </section>
   </div>
 

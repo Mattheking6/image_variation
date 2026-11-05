@@ -37,5 +37,6 @@ as a fallback on short screens.
   animation are layout-agnostic (fixed-position coordinate based).
 - Detail screens must stay `position: fixed` — they cover the viewport, not the
   document. The page no longer scrolls, but fixed remains the documented pattern.
-- Help text is inline in the flank layout (header paragraph) and lives in the
-  help detail screen (header “?” button) in the compact layout.
+- Help lives in the help detail screen, opened from the header “Aide” button in
+  both layouts. (The flank layout originally showed the help text as an inline
+  header paragraph; that was later removed in favour of the button everywhere.)
