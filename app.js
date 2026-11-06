@@ -201,6 +201,8 @@ function startWinTransition() {
     winTimer = setTimeout(startWinTransition, 300);
     return;
   }
+  closeZoom()
+  closePopup()
   beginWinFlight();
   openSuccess();
   setTimeout(resizeMap, 60);
@@ -649,7 +651,7 @@ $('popup').addEventListener('click', e => e.stopPropagation());
 $('popup-close').addEventListener('click', closePopup);
 $('success-container').addEventListener('click', closeSuccess);
 $('success').addEventListener('click', e => e.stopPropagation());
-$('success-close').addEventListener('click', closeSuccess);
+// $('success-close').addEventListener('click', closeSuccess);
 $('zoom-container').addEventListener('click', closeZoom);
 $('zoom').addEventListener('click', e => e.stopPropagation());
 $('zoom-close').addEventListener('click', closeZoom);
